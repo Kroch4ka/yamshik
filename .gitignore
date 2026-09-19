@@ -9,3 +9,6 @@
 
 # rspec failure tracking
 .rspec_status
+
+# Gem: lockfile не коммитим — CI на матрице Ruby должен резолвить зависимости под каждую версию
+Gemfile.lock
