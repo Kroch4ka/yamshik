@@ -21,6 +21,9 @@ require_relative "yamshik/parcel_service"
 require_relative "yamshik/status"
 require_relative "yamshik/parcel"
 require_relative "yamshik/tracking_event"
+require_relative "yamshik/carrier"
+require_relative "yamshik/status_mapper"
+require_relative "yamshik/adapters/fake"
 
 # Yamshik is a core gem that defines a unified domain model and carrier
 # contract for Russian delivery services. Carrier integrations live in
