@@ -60,6 +60,7 @@
 
 Полное описание — в `CONTRIBUTING.md`, кратко:
 
+- **План работы и критерии приёма — в GitHub Issues и Milestones** (`v0.1`, `v0.2` в репозитории Kroch4ka/yamshik). Перед началом задачи читать её issue (`gh issue view N`): там критерии приёма чеклистом. PR закрывает issue через `closes #N` в описании.
 - Хостинг **GitHub**. Работа только через PR: ветка от `main` → сразу Draft PR → тесты обязательны в том же PR → ревью → **squash merge**. Прямые пуши в `main` запрещены.
 - Ветки: `<type>/<kebab-case-описание>` (`feat/carrier-contract`, `fix/result-nil-error`; типы: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`).
 - Заголовки PR — Conventional Commits со scope (`feat(core): ...`, `fix(http): ...`); при squash заголовок становится коммитом в `main`.
