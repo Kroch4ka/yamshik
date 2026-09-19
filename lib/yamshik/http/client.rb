@@ -24,15 +24,20 @@ module Yamshik
       # @param timeout [Numeric] request timeout in seconds
       # @param logger [Logger, nil]
       # @param breaker [CircuitBreaker]
+      # @param classifier [#call] response classifier deciding success vs
+      #   business answer vs infrastructural failure; plugins with quirky
+      #   carriers wrap or replace it (DESIGN.md §1)
       # @param max_retries [Integer] retries after the first attempt
       # @param connection [Faraday::Connection, nil] injected connection (tests)
       # @param sleeper [#call] sleep function, injected for tests
       #   @api private
       def initialize(base_url:, timeout: 10, logger: nil, breaker: CircuitBreaker.new,
-                     max_retries: DEFAULT_MAX_RETRIES, connection: nil, sleeper: ->(seconds) { sleep(seconds) })
+                     classifier: StatusClassifier, max_retries: DEFAULT_MAX_RETRIES,
+                     connection: nil, sleeper: ->(seconds) { sleep(seconds) })
         @timeout = timeout
         @logger = logger
         @breaker = breaker
+        @classifier = classifier
         @max_retries = max_retries
         @sleeper = sleeper
         @connection = connection || build_connection(base_url)
@@ -74,7 +79,7 @@ module Yamshik
 
       private
 
-      attr_reader :connection, :timeout, :logger, :breaker, :max_retries, :sleeper
+      attr_reader :connection, :timeout, :logger, :breaker, :classifier, :max_retries, :sleeper
 
       def build_connection(base_url)
         Faraday.new(url: base_url) do |faraday|
@@ -109,17 +114,21 @@ module Yamshik
         error.is_a?(RateLimitedError) && error.retry_after ? error.retry_after : backoff(attempt)
       end
 
-      # One attempt through the circuit breaker. Maps responses and Faraday
-      # failures to the yamshik exception hierarchy.
+      # One attempt through the circuit breaker. Faraday failures are mapped
+      # to the yamshik hierarchy inside the breaker block, so the breaker
+      # counts them; the classifier decides the fate of responses.
       def perform(method, path, **kwargs)
         breaker.call do
-          response = raw_request(method, path, **kwargs)
-          handle_status(response)
+          begin
+            response = raw_request(method, path, **kwargs)
+          rescue Faraday::ConnectionFailed, Faraday::SSLError => e
+            raise ConnectionError, e.message
+          rescue Faraday::TimeoutError => e
+            raise TimeoutError, e.message
+          end
+
+          classifier.call(response)
         end
-      rescue Faraday::ConnectionFailed, Faraday::SSLError => e
-        raise ConnectionError, e.message
-      rescue Faraday::TimeoutError => e
-        raise TimeoutError, e.message
       end
 
       def raw_request(method, path, **kwargs)
@@ -130,21 +139,6 @@ module Yamshik
           req.headers.update(kwargs[:headers]) if kwargs[:headers]
           req.body = kwargs[:body] if kwargs.key?(:body)
         end
-      end
-
-      # @return [Faraday::Response] 2xx and business-level 4xx
-      # @raise [AuthenticationError] 401/403
-      # @raise [RateLimitedError] 429, with Retry-After when present
-      # @raise [CarrierUnavailableError] 5xx
-      def handle_status(response)
-        case response.status
-        when 401, 403 then raise AuthenticationError, "carrier authentication failed (#{response.status})"
-        when 429
-          raise RateLimitedError.new("carrier rate limited us", retry_after: response.headers["Retry-After"]&.to_f)
-        when 500..599 then raise CarrierUnavailableError, "carrier responded #{response.status}"
-        end
-
-        response
       end
 
       def backoff(attempt)

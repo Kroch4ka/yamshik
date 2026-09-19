@@ -136,4 +136,46 @@ RSpec.describe Yamshik::HTTP::Client do
       expect { client.get("/x") }.to raise_error(Yamshik::CircuitOpenError)
     end
   end
+
+  describe "custom classifier" do
+    let(:breaker) { Yamshik::HTTP::CircuitBreaker.new(failure_threshold: 1, reset_timeout: 60) }
+    let(:quirky_client) do
+      described_class.new(base_url: "https://api.example.test", connection:, sleeper:,
+                          classifier:, breaker:, max_retries: 0)
+    end
+
+    context "when a carrier reports unavailability in a 200 body" do
+      let(:classifier) do
+        lambda { |response|
+          raise Yamshik::CarrierUnavailableError, "carrier is down (200 body)" if response.body.include?("SERVICE_DOWN")
+
+          Yamshik::HTTP::StatusClassifier.call(response)
+        }
+      end
+
+      it "raises and feeds the breaker" do
+        stubs.get("/weird") { [200, {}, '{"error":"SERVICE_DOWN"}'] }
+
+        expect { quirky_client.get("/weird") }.to raise_error(Yamshik::CarrierUnavailableError)
+        expect(breaker.state).to eq(:open)
+      end
+    end
+
+    context "when a carrier reports business errors as 500" do
+      let(:classifier) do
+        lambda { |response|
+          return response if response.status == 500 && response.body.include?("VALIDATION")
+
+          Yamshik::HTTP::StatusClassifier.call(response)
+        }
+      end
+
+      it "returns the response untouched and spares the breaker" do
+        stubs.post("/orders") { [500, {}, '{"error":"VALIDATION","fields":["weight"]}'] }
+
+        expect(quirky_client.post("/orders", body: {}).status).to eq(500)
+        expect(breaker.state).to eq(:closed)
+      end
+    end
+  end
 end

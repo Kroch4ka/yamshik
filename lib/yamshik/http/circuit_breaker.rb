@@ -9,16 +9,28 @@ module Yamshik
     # hitting the network. After +reset_timeout+ seconds a single trial call
     # is let through (half-open): success closes the circuit, failure re-opens it.
     #
+    # By default only yamshik infrastructural errors are counted
+    # ({INFRA_ERRORS}); programmer errors propagate without feeding the
+    # breaker. Plugins may override what counts via +count_failure:+
+    # (e.g. a carrier whose 429 is a soft limit should not open the circuit).
+    #
     # Thread-safe.
     class CircuitBreaker
+      # Errors counted as carrier-unavailability symptoms by default.
+      INFRA_ERRORS = [TimeoutError, ConnectionError, CarrierUnavailableError, RateLimitedError].freeze
+
       # @return [Symbol] :closed, :open or :half_open
       attr_reader :state
 
       # @param failure_threshold [Integer] consecutive failures before opening
       # @param reset_timeout [Numeric] seconds to wait before the half-open trial
-      def initialize(failure_threshold: 5, reset_timeout: 30)
+      # @param count_failure [#call, nil] predicate receiving the raised error,
+      #   returning whether it counts toward opening the circuit;
+      #   defaults to {INFRA_ERRORS} only
+      def initialize(failure_threshold: 5, reset_timeout: 30, count_failure: nil)
         @failure_threshold = failure_threshold
         @reset_timeout = reset_timeout
+        @count_failure = count_failure || ->(error) { INFRA_ERRORS.any? { |klass| error.is_a?(klass) } }
         @state = :closed
         @consecutive_failures = 0
         @opened_at = nil
@@ -31,13 +43,12 @@ module Yamshik
       # @return [Object] the block's result
       # @raise [CircuitOpenError] if the circuit is open
       def call(&)
-        transition = @mutex.synchronize { before_call }
+        trial = @mutex.synchronize { before_call } == :half_open
 
         yield.tap { @mutex.synchronize { record_success } }
-      rescue CircuitOpenError
-        raise
-      rescue StandardError
-        @mutex.synchronize { record_failure(trial: transition == :half_open) }
+      rescue StandardError => e
+        @mutex.synchronize { record_failure(trial:) } if counts?(e)
+
         raise
       end
 
@@ -49,6 +60,10 @@ module Yamshik
         return reset_for_trial if cooldown_elapsed?
 
         raise CircuitOpenError, "circuit is open"
+      end
+
+      def counts?(error)
+        @count_failure.call(error)
       end
 
       def cooldown_elapsed?

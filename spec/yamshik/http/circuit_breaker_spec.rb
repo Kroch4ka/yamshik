@@ -34,6 +34,27 @@ RSpec.describe Yamshik::HTTP::CircuitBreaker do
       .to raise_error(Yamshik::TimeoutError, "boom")
   end
 
+  describe "failure counting" do
+    it "does not count non-infrastructural errors by default" do
+      3.times do
+        breaker.call { raise "adapter bug" }
+      rescue RuntimeError
+        nil
+      end
+
+      expect(breaker.state).to eq(:closed)
+    end
+
+    it "supports a custom count_failure predicate" do
+      lenient = described_class.new(failure_threshold: 1, reset_timeout: 30,
+                                    count_failure: ->(e) { !e.is_a?(Yamshik::RateLimitedError) })
+
+      2.times { lenient.call { raise Yamshik::RateLimitedError } rescue nil } # rubocop:disable Style/RescueModifier
+
+      expect(lenient.state).to eq(:closed)
+    end
+  end
+
   context "with reset_timeout in the past" do
     subject(:breaker) { described_class.new(failure_threshold: 1, reset_timeout: 0) }
 
