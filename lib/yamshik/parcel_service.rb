@@ -5,28 +5,27 @@ module Yamshik
   # a canonical kind plus the carrier's own service code.
   #
   # Non-monetary service parameters go through carrier_options.
-  class ParcelService
+  ParcelService = Data.define(:kind, :carrier_code, :amount) do
     # Canonical service kinds.
-    KINDS = %i[insurance cod try_on sms_notification carrier_specific].freeze
+    const_set(:KINDS, %i[insurance cod try_on sms_notification carrier_specific].freeze)
 
-    # @return [Symbol] one of {KINDS}
-    attr_reader :kind
-    # @return [String] the carrier's service code
-    attr_reader :carrier_code
-    # @return [Money, nil] service price (absent for :try_on, :sms_notification)
-    attr_reader :amount
+    # @!attribute [r] kind
+    #   @return [Symbol] one of {KINDS}
+    # @!attribute [r] carrier_code
+    #   @return [String] the carrier's service code
+    # @!attribute [r] amount
+    #   @return [Money, nil] service price (absent for :try_on, :sms_notification)
 
     # @param kind [Symbol] one of {KINDS}
     # @param carrier_code [String] the carrier's service code
     # @param amount [Money, nil] service price
     # @raise [ArgumentError] on unknown kind
     def initialize(kind:, carrier_code:, amount: nil)
-      raise ArgumentError, "kind must be one of #{KINDS.inspect}, got #{kind.inspect}" unless KINDS.include?(kind)
+      unless self.class::KINDS.include?(kind)
+        raise ArgumentError, "kind must be one of #{self.class::KINDS.inspect}, got #{kind.inspect}"
+      end
 
-      @kind = kind
-      @carrier_code = carrier_code
-      @amount = amount
-      freeze
+      super
     end
   end
 end

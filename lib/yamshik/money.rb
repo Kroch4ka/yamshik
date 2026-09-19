@@ -5,11 +5,11 @@ module Yamshik
   #
   # Amounts are always Integer minor units (kopecks for RUB).
   # Conversion from carrier-specific units is the adapter's concern.
-  class Money
-    # @return [Integer] amount in minor units (kopecks)
-    attr_reader :amount
-    # @return [String] ISO 4217 currency code (e.g. "RUB")
-    attr_reader :currency
+  Money = Data.define(:amount, :currency) do
+    # @!attribute [r] amount
+    #   @return [Integer] amount in minor units (kopecks)
+    # @!attribute [r] currency
+    #   @return [String] ISO 4217 currency code (e.g. "RUB")
 
     # @param amount [Integer] amount in minor units (kopecks)
     # @param currency [String] ISO 4217 currency code
@@ -17,9 +17,7 @@ module Yamshik
     def initialize(amount:, currency: "RUB")
       raise ArgumentError, "amount must be an Integer (minor units), got #{amount.inspect}" unless amount.is_a?(Integer)
 
-      @amount = amount
-      @currency = currency
-      freeze
+      super
     end
 
     # Adds two amounts of the same currency.
@@ -32,24 +30,7 @@ module Yamshik
         raise ArgumentError, "cannot add #{other.inspect} to Money(#{amount}, #{currency})"
       end
 
-      self.class.new(amount: amount + other.amount, currency: currency)
-    end
-
-    # @param other [Object]
-    # @return [Boolean]
-    def ==(other)
-      other.is_a?(Money) && amount == other.amount && currency == other.currency
-    end
-    alias eql? ==
-
-    # @return [Integer]
-    def hash
-      [self.class, amount, currency].hash
-    end
-
-    # @return [String]
-    def inspect
-      "#<Yamshik::Money #{amount} #{currency}>"
+      self.class.new(amount: amount + other.amount, currency:)
     end
   end
 end

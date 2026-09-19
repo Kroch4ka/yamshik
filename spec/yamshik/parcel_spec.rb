@@ -36,6 +36,14 @@ RSpec.describe Yamshik::Parcel do
     expect(parcel.services).to eq([])
   end
 
+  it "freezes itself and its collections" do
+    parcel = build_parcel(items: [item], places: [Yamshik::Place.new(weight_g: 100)])
+    expect(parcel).to be_frozen
+    expect(parcel.items).to be_frozen
+    expect(parcel.places).to be_frozen
+    expect(parcel.services).to be_frozen
+  end
+
   it "requires reference, sender, recipient, origin and destination" do
     expect { build_parcel(reference: nil) }.to raise_error(ArgumentError, /reference/)
     expect { build_parcel(sender: nil) }.to raise_error(ArgumentError, /sender/)

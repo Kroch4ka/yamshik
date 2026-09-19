@@ -2,16 +2,16 @@
 
 module Yamshik
   # Legal entity details attached to a {Contact}.
-  class Company
-    # @return [String] INN (taxpayer identification number)
-    attr_reader :inn
+  Company = Data.define(:inn) do
+    # @!attribute [r] inn
+    #   @return [String] INN (taxpayer identification number)
 
     # @param inn [String] INN (taxpayer identification number)
+    # @raise [ArgumentError] if inn is missing
     def initialize(inn:)
       raise ArgumentError, "inn is required" if inn.nil?
 
-      @inn = inn
-      freeze
+      super
     end
   end
 end

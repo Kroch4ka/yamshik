@@ -30,4 +30,12 @@ RSpec.describe Yamshik::Contact do
     expect(minimal.company).to be_nil
     expect(minimal.email).to be_nil
   end
+
+  it "is immutable and equal by value" do
+    same = described_class.new(name: "Иван Иванов", phone: "+79001234567",
+                               company: Yamshik::Company.new(inn: "7707083893"), email: "ivan@example.com")
+    expect(contact).to eq(same)
+    expect(contact.hash).to eq(same.hash)
+    expect(contact).to be_frozen
+  end
 end
