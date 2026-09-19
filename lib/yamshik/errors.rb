@@ -24,6 +24,14 @@ module Yamshik
   # contract, not a business refusal — please report it to the adapter.
   class InvalidResponseError < Error; end
 
+  # The carrier API answered with 5xx and retries are exhausted.
+  # The service is down or misbehaving.
+  class CarrierUnavailableError < Error; end
+
+  # The circuit breaker is open: the carrier is failing systematically,
+  # calls fail fast without hitting the network (DESIGN.md §1).
+  class CircuitOpenError < Error; end
+
   # The carrier asked us to slow down (HTTP 429), and retries are exhausted.
   class RateLimitedError < Error
     # @return [Numeric, nil] seconds the carrier asked us to wait, if known

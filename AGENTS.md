@@ -24,7 +24,7 @@
 ## Результаты и ошибки (принятые решения)
 
 - Бизнес-результаты — Result-объекты (`result.success?`, `result.value`, `result.error`).
-- Исключения — только инфраструктурные: `Yamshik::Error`, `TimeoutError`, `ConnectionError`, `RateLimitedError` (с `retry_after`), `AuthenticationError`, `InvalidResponseError`.
+- Исключения — только инфраструктурные: `Yamshik::Error`, `TimeoutError`, `ConnectionError`, `CarrierUnavailableError` (5xx после ретраев), `CircuitOpenError` (fail fast при открытом CB), `RateLimitedError` (с `retry_after`), `AuthenticationError`, `InvalidResponseError`.
 - `Result.err` содержит `Yamshik::CarrierError` как данные (не exception): `code`, `carrier`, `message`, `details`, `raw`, `carrier_code`. Таксономия кодов: `:validation_failed`, `:duplicate`, `:not_found`, `:route_not_supported`, `:rejected`, `:other` — см. DESIGN.md §2.
 
 ## Идемпотентность

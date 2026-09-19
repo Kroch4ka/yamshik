@@ -25,6 +25,8 @@
   - `Yamshik::Error` — базовый
   - `Yamshik::TimeoutError`
   - `Yamshik::ConnectionError`
+  - `Yamshik::CarrierUnavailableError` — 5xx службы после исчерпания ретраев
+  - `Yamshik::CircuitOpenError` — circuit breaker открыт, fail fast без обращения к сети
   - `Yamshik::RateLimitedError` — с полем `retry_after`
   - `Yamshik::AuthenticationError`
   - `Yamshik::InvalidResponseError` — служба вернула непарсящийся мусор
