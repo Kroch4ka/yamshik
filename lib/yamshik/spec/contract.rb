@@ -16,10 +16,15 @@ module Yamshik
     #     it_behaves_like "a yamshik carrier" do
     #       let(:carrier) { described_class.new(client_id: "...", client_secret: "...") }
     #       let(:valid_parcel) { ... } # a Yamshik::Parcel the carrier accepts
+    #       let(:carrier_options) { { tariff_code: "136" } } # when creation requires options
     #     end
     #   end
     module Contract
       RSpec.shared_examples "a yamshik carrier" do
+        # Plugins override this when their carrier requires carrier_options
+        # for order creation (e.g. CDEK needs a tariff_code).
+        let(:carrier_options) { {} }
+
         it "implements the Carrier contract" do
           expect(carrier).to be_a(Yamshik::Carrier)
         end
@@ -29,7 +34,7 @@ module Yamshik
         end
 
         describe "#create_order" do
-          subject(:result) { carrier.create_order(valid_parcel) }
+          subject(:result) { carrier.create_order(valid_parcel, carrier_options:) }
 
           it "returns a successful Result with a registered Parcel" do
             expect(result).to be_a(Yamshik::Result)
@@ -46,8 +51,8 @@ module Yamshik
             it "returns the same parcel for a repeated reference" do
               skip "carrier is not idempotent" unless carrier.class.creation_strategy == :idempotent
 
-              first = carrier.create_order(valid_parcel)
-              second = carrier.create_order(valid_parcel)
+              first = carrier.create_order(valid_parcel, carrier_options:)
+              second = carrier.create_order(valid_parcel, carrier_options:)
 
               expect(second.value.external_id).to eq(first.value.external_id)
             end
@@ -67,7 +72,7 @@ module Yamshik
 
         describe "#parcel" do
           it "returns the created parcel by external_id" do
-            created = carrier.create_order(valid_parcel).value
+            created = carrier.create_order(valid_parcel, carrier_options:).value
             result = carrier.parcel(created.external_id)
 
             expect(result).to be_success
